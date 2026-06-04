@@ -44,6 +44,10 @@ from llm.query_ai import (
     generate_sql_query
 )
 
+from llm.response_generator import (
+    generate_natural_language_response
+)
+
 from workflow.query_executor import (
     execute_sql_query
 )
@@ -300,6 +304,22 @@ def process_user_query(
             )
 
         # -------------------------------------------------
+        # NATURAL LANGUAGE GENERATION
+        # -------------------------------------------------
+
+        nl_result = generate_natural_language_response(
+            user_query=user_query,
+            sql_query=generated_sql,
+            query_result=execution_output["result"]
+        )
+
+        pipeline_results["stages"].append({
+            "stage": "nl_generation",
+            "status": "success" if nl_result["success"] else "fallback",
+            "timestamp": time.time()
+        })
+
+        # -------------------------------------------------
         # FINAL SUCCESS RESPONSE
         # -------------------------------------------------
 
@@ -320,6 +340,8 @@ def process_user_query(
             "generated_sql": generated_sql,
             "query_result":
                 execution_output["result"],
+            "nl_response":
+                nl_result.get("response_text", ""),
             "execution_time_seconds":
                 total_execution_time,
             "pipeline_stages":
