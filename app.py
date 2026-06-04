@@ -104,6 +104,7 @@ st.sidebar.markdown("## ⚙️ Connections & Metadata")
 
 # Test DB Connection
 db_connected, db_msg = test_connection()
+schema: dict = {}
 if db_connected:
     st.sidebar.markdown("### Database Status: <span class='status-connected'>● Connected</span>", unsafe_allow_html=True)
     
@@ -235,7 +236,7 @@ if 'generated_sql' in st.session_state:
             
             if error:
                 st.error(f"❌ SQL Execution Error:\n\n{error}")
-            else:
+            elif df is not None:
                 st.success(f"✅ Success! Fetched {len(df)} rows.")
                 
                 # Show results in a clean table
