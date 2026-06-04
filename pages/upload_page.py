@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 from database.sql_server import get_tables_list, test_connection
-from utils.csv_processor import process_csv, upload_df_to_sql
+from database.csv_uploader import process_csv, upload_df_to_sql
 
 st.set_page_config(
     page_title="Upload Data - AI SQL Query Generator",
