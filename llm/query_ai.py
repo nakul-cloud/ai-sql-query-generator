@@ -37,6 +37,14 @@ from analysis.schema_context import (
     generate_schema_context
 )
 
+from utils.prompt_loader import (
+    render_prompt
+)
+
+from utils.helpers import (
+    clean_sql_query
+)
+
 
 # ---------------------------------------------------------
 # ENVIRONMENT CONFIGURATION
@@ -83,43 +91,7 @@ MAX_OUTPUT_TOKENS = 2048
 
 
 # ---------------------------------------------------------
-# SYSTEM PROMPT
-# ---------------------------------------------------------
-
-SYSTEM_PROMPT = """
-You are an expert Microsoft SQL Server engineer.
-
-Your task is to generate accurate,
-optimized, production-grade SQL queries.
-
-STRICT RULES:
---------------
-1. Generate ONLY valid Microsoft SQL Server syntax.
-2. Never hallucinate table names.
-3. Never hallucinate column names.
-4. Use ONLY provided schema context.
-5. Never generate destructive queries.
-6. Only generate SELECT queries.
-7. Never use markdown formatting.
-8. Never explain the SQL.
-9. Never wrap SQL in triple backticks.
-10. Return ONLY executable SQL.
-
-QUERY REQUIREMENTS:
--------------------
-- Use proper aliases
-- Use aggregation correctly
-- Use TOP instead of LIMIT
-- Handle grouping safely
-- Prefer readable formatting
-- Avoid SELECT *
-
-Your response must contain ONLY SQL.
-"""
-
-
-# ---------------------------------------------------------
-# GEMINI MODEL INITIALIZATION
+# MODEL INITIALIZATION
 # ---------------------------------------------------------
 
 model = genai.GenerativeModel(
@@ -131,69 +103,7 @@ model = genai.GenerativeModel(
 )
 
 
-# ---------------------------------------------------------
-# PROMPT BUILDER
-# ---------------------------------------------------------
 
-def build_sql_prompt(
-    user_query: str,
-    schema_context: str
-) -> str:
-    """
-    Builds dynamic schema-aware prompt.
-    """
-
-    prompt = f"""
-Database Schema Context:
-------------------------
-{schema_context}
-
-User Question:
---------------
-{user_query}
-
-Generate a valid Microsoft SQL Server query.
-"""
-
-    return prompt.strip()
-
-
-# ---------------------------------------------------------
-# SQL EXTRACTION
-# ---------------------------------------------------------
-
-def extract_sql_query(
-    response_text: str
-) -> str:
-    """
-    Cleans and extracts executable SQL.
-    """
-
-    cleaned = response_text.strip()
-
-    # Remove markdown code blocks
-    cleaned = re.sub(
-        r"```sql",
-        "",
-        cleaned,
-        flags=re.IGNORECASE
-    )
-
-    cleaned = re.sub(
-        r"```",
-        "",
-        cleaned
-    )
-
-    # Remove accidental explanations
-    cleaned = cleaned.strip()
-
-    return cleaned
-
-
-# ---------------------------------------------------------
-# SQL SAFETY VALIDATION
-# ---------------------------------------------------------
 
 def validate_sql_response(
     sql_query: str
@@ -261,21 +171,19 @@ def generate_sql_query(
         # BUILD PROMPT
         # -------------------------------------------------
 
-        final_prompt = build_sql_prompt(
-            user_query=user_query,
-            schema_context=schema_context
+        final_prompt = render_prompt(
+            "sql_generation",
+            {
+                "user_query": user_query,
+                "schema_context": schema_context
+            }
         )
 
         # -------------------------------------------------
         # GENERATE RESPONSE
         # -------------------------------------------------
 
-        response = model.generate_content(
-            [
-                SYSTEM_PROMPT,
-                final_prompt
-            ]
-        )
+        response = model.generate_content(final_prompt)
 
         raw_output = response.text.strip()
 
@@ -287,7 +195,7 @@ def generate_sql_query(
         # CLEAN SQL
         # -------------------------------------------------
 
-        cleaned_sql = extract_sql_query(
+        cleaned_sql = clean_sql_query(
             raw_output
         )
 
